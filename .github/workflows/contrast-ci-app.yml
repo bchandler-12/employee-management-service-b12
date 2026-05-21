@@ -1,7 +1,7 @@
 # DISCLAIMER: This workflow file has been auto-generated and committed to the repo by the GitHub App from Contrast Security.
 # Manual edits to this file could cause the integration to produce unexpected behavior or break the integration.
 # Version: 1.0.0
-# Last updated: 2026-05-21T17:06:38.638164476Z
+# Last updated: 2026-05-21T17:50:40.982465616Z
 name: Contrast CI
 
 on:
@@ -72,7 +72,7 @@ jobs:
       # -------------------------------------------------------
       disable_contrast_code:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_CODE || 'false' }}
       disable_contrast_sca:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SCA || 'false' }}
-      disable_smartfix:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SMARTFIX || 'true' }}
+      disable_smartfix:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SMARTFIX || 'false' }}
 
       # -------------------------------------------------------
       # SmartFix Config (manual optional overrides)
