@@ -1,0 +1,169 @@
+name: Contrast Triage Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+      aws_session_token:
+        description: 'AWS Session Token'
+        required: false
+      triage_duration:
+        description: 'Triage duration (e.g. 1m, 5m)'
+        required: false
+        default: '2m'
+
+permissions:
+  contents: read
+
+env:
+  CONTRAST_HOST: https://teamserver-scantest.contsec.com
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────
+  # JOB 1: Detect Modules via Contrast Recon
+  # ───────────────────────────────────────────────────────────────────────
+  contrast-recon:
+    name: Detect Modules
+    runs-on: ubuntu-latest
+    outputs:
+      contrast_ci_manifest: ${{ steps.recon.outputs.contrast_ci_manifest }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Run Contrast Recon
+        id: recon
+        env:
+          CONTRAST_HOST_NAME: ${{ env.CONTRAST_HOST }}
+          CONTRAST_ORG_ID: ${{ secrets.SCANTEST_CONTRAST_ORG_ID }}
+          CONTRAST_API_KEY: ${{ secrets.SCANTEST_CONTRAST_API_KEY }}
+          CONTRAST_AUTH_TOKEN: ${{ secrets.SCANTEST_CONTRAST_AUTHORIZATION }}
+          GITHUB_DEFAULT_BRANCH: main
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: https://github.com
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+        run: |
+          CONTRAST_CI_MANIFEST=$(docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e CONTRAST_HOST_NAME \
+            -e CONTRAST_ORG_ID \
+            -e CONTRAST_API_KEY \
+            -e CONTRAST_AUTH_TOKEN \
+            -e GITHUB_DEFAULT_BRANCH \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_SERVER_URL \
+            -e GITHUB_SHA \
+            -e GITHUB_REF \
+            -e GITHUB_RUN_ID \
+            -e GITHUB_WORKFLOW \
+            -v "${{ github.workspace }}:/workspace" \
+            contrast/contrast-recon:latest /workspace)
+
+          echo "Recon output:"
+          echo "$CONTRAST_CI_MANIFEST" | jq .
+
+          echo "contrast_ci_manifest<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CONTRAST_CI_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  # ───────────────────────────────────────────────────────────────────────
+  # JOB 2: Resolve Applications via Contrast Resolver
+  # ───────────────────────────────────────────────────────────────────────
+  contrast-resolve:
+    name: Resolve Applications
+    needs: contrast-recon
+    runs-on: ubuntu-latest
+    outputs:
+      contrast_ci_manifest: ${{ steps.set-outputs.outputs.contrast_ci_manifest }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Run Contrast Resolver
+        id: resolve
+        env:
+          CONTRAST_HOST_NAME: ${{ env.CONTRAST_HOST }}
+          CONTRAST_ORG_ID: ${{ secrets.SCANTEST_CONTRAST_ORG_ID }}
+          CONTRAST_API_KEY: ${{ secrets.SCANTEST_CONTRAST_API_KEY }}
+          CONTRAST_AUTH_TOKEN: ${{ secrets.SCANTEST_CONTRAST_AUTHORIZATION }}
+          GITHUB_DEFAULT_BRANCH: main
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: https://github.com
+        run: |
+          CONTRAST_CI_MANIFEST=$(echo '${{ needs.contrast-recon.outputs.contrast_ci_manifest }}' | \
+          docker run --rm -i \
+            --user "$(id -u):$(id -g)" \
+            -e CONTRAST_HOST_NAME \
+            -e CONTRAST_ORG_ID \
+            -e CONTRAST_API_KEY \
+            -e CONTRAST_AUTH_TOKEN \
+            -e GITHUB_DEFAULT_BRANCH \
+            -e GITHUB_REPOSITORY \
+            -e GITHUB_SERVER_URL \
+            -e GITHUB_ENV="$GITHUB_ENV" \
+            -v "$(dirname $GITHUB_ENV):$(dirname $GITHUB_ENV)" \
+            --entrypoint contrast-resolver \
+            contrast/contrast-recon:latest)
+
+          echo "Resolver output:"
+          echo "$CONTRAST_CI_MANIFEST" | jq .
+
+          echo "contrast_ci_manifest<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CONTRAST_CI_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Set Outputs
+        id: set-outputs
+        env:
+          CONTRAST_CI_MANIFEST: ${{ steps.resolve.outputs.contrast_ci_manifest }}
+        run: |
+          echo "contrast_ci_manifest<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTRAST_CI_MANIFEST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  # ───────────────────────────────────────────────────────────────────────
+  # JOB 3: SAST Scan + Triage
+  # ───────────────────────────────────────────────────────────────────────
+  run-contrast-code:
+    name: SAST + Triage
+    needs: contrast-resolve
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Run Contrast Code Scanner with Triage
+        uses: docker://contrast/sast-smartai
+        env:
+          CONTRAST_CI_MANIFEST: ${{ needs.contrast-resolve.outputs.contrast_ci_manifest }}
+          CONTRAST_BASE_URL: ${{ env.CONTRAST_HOST }}
+          CONTRAST_ORG_ID: ${{ secrets.SCANTEST_CONTRAST_ORG_ID }}
+          CONTRAST_API_KEY: ${{ secrets.SCANTEST_CONTRAST_API_KEY }}
+          CONTRAST_AUTHORIZATION: ${{ secrets.SCANTEST_CONTRAST_AUTHORIZATION }}
+          RUN_TRIAGE: "True"
+          TRIAGE_DURATION: ${{ inputs.triage_duration }}
+          APPLICATION_DIR: ${{ github.workspace }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          REPO_HTTP_URL: https://github.com/${{ github.repository }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: main
+          COMMIT_HASH: ${{ github.sha }}
+          COMMITTER: ${{ github.triggering_actor }}
+          TAG: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+          WORKFLOW_ID: ${{ github.workflow_sha }}
+          LOGLEVEL: DEBUG
+          OTEL_EXPORTER_OTLP_ENDPOINT: https://teamserver-scantest.contsec.com/aiml/otel
+          OTEL_EXPORTER_OTLP_HEADERS: "Authorization=ApiKey ${{ secrets.SCANTEST_CONTRAST_API_KEY }}"
+          AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
+          AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
+          AWS_SESSION_TOKEN: ${{ inputs.aws_session_token }}
