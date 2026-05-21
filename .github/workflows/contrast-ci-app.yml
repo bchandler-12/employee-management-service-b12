@@ -72,7 +72,7 @@ jobs:
       # -------------------------------------------------------
       disable_contrast_code:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_CODE || 'false' }}
       disable_contrast_sca:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SCA || 'false' }}
-      disable_smartfix:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SMARTFIX || 'false' }}
+      disable_smartfix:  ${{ vars.CONTRAST_CI_DISABLE_CONTRAST_SMARTFIX || 'true' }}
 
       # -------------------------------------------------------
       # SmartFix Config (manual optional overrides)
