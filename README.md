@@ -5,7 +5,7 @@ This project is a simple Spring Boot application that serves as an Employee Mana
 ## Project Structure
 
 ```
-employee-management-service
+employee-management-service-b12
 ├── src
 │   ├── main
 │   │   ├── java
@@ -54,7 +54,7 @@ employee-management-service
 1. Clone the repository:
    ```
    git clone <repository-url>
-   cd employee-management-service
+   cd employee-management-service-b12
    ```
 
 2. Build the application:

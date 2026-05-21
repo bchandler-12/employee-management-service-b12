@@ -3,15 +3,6 @@ name: Contrast Triage Test
 on:
   workflow_dispatch:
     inputs:
-      aws_access_key_id:
-        description: 'AWS Access Key ID'
-        required: true
-      aws_secret_access_key:
-        description: 'AWS Secret Access Key'
-        required: true
-      aws_session_token:
-        description: 'AWS Session Token'
-        required: false
       triage_duration:
         description: 'Triage duration (e.g. 1m, 5m)'
         required: false
@@ -164,6 +155,7 @@ jobs:
           LOGLEVEL: DEBUG
           OTEL_EXPORTER_OTLP_ENDPOINT: https://teamserver-scantest.contsec.com/aiml/otel
           OTEL_EXPORTER_OTLP_HEADERS: "Authorization=ApiKey ${{ secrets.SCANTEST_CONTRAST_API_KEY }}"
+          OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: delta
           AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
           AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
           AWS_SESSION_TOKEN: ${{ inputs.aws_session_token }}
