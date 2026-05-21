@@ -3,6 +3,15 @@ name: Contrast Triage Test
 on:
   workflow_dispatch:
     inputs:
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+      aws_session_token:
+        description: 'AWS Session Token'
+        required: false
       triage_duration:
         description: 'Triage duration (e.g. 1m, 5m)'
         required: false
