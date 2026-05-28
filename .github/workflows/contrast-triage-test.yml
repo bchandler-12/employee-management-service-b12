@@ -3,14 +3,19 @@ name: Contrast Triage Test
 on:
   workflow_dispatch:
     inputs:
+      use_byo_llm:
+        description: 'Use BYO LLM (bedrock_converse) instead of Contrast-managed LLM'
+        required: false
+        default: false
+        type: boolean
       aws_access_key_id:
-        description: 'AWS Access Key ID'
-        required: true
+        description: 'AWS Access Key ID (required for BYO LLM)'
+        required: false
       aws_secret_access_key:
-        description: 'AWS Secret Access Key'
-        required: true
+        description: 'AWS Secret Access Key (required for BYO LLM)'
+        required: false
       aws_session_token:
-        description: 'AWS Session Token'
+        description: 'AWS Session Token (optional, BYO LLM only)'
         required: false
       triage_duration:
         description: 'Triage duration (e.g. 1m, 5m)'
@@ -34,6 +39,14 @@ jobs:
     outputs:
       contrast_ci_manifest: ${{ steps.recon.outputs.contrast_ci_manifest }}
     steps:
+      - name: Validate BYO LLM Inputs
+        if: ${{ inputs.use_byo_llm == true }}
+        run: |
+          if [ -z "${{ inputs.aws_access_key_id }}" ] || [ -z "${{ inputs.aws_secret_access_key }}" ]; then
+            echo "ERROR: aws_access_key_id and aws_secret_access_key are required when use_byo_llm is true"
+            exit 1
+          fi
+
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -151,6 +164,7 @@ jobs:
           CONTRAST_AUTHORIZATION: ${{ secrets.SCANTEST_CONTRAST_AUTHORIZATION }}
           RUN_TRIAGE: "True"
           TRIAGE_DURATION: ${{ inputs.triage_duration }}
+          MODEL_PROVIDER: ${{ inputs.use_byo_llm == true && 'bedrock_converse' || 'contrast-anthropic' }}
           APPLICATION_DIR: ${{ github.workspace }}
           REPO_NAME: ${{ github.event.repository.name }}
           REPO_HTTP_URL: https://github.com/${{ github.repository }}
@@ -165,6 +179,6 @@ jobs:
           OTEL_EXPORTER_OTLP_ENDPOINT: https://teamserver-scantest.contsec.com/aiml/otel
           OTEL_EXPORTER_OTLP_HEADERS: "Authorization=ApiKey ${{ secrets.SCANTEST_CONTRAST_API_KEY }}"
           OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: delta
-          AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
-          AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
-          AWS_SESSION_TOKEN: ${{ inputs.aws_session_token }}
+          AWS_ACCESS_KEY_ID: ${{ inputs.use_byo_llm == true && inputs.aws_access_key_id || '' }}
+          AWS_SECRET_ACCESS_KEY: ${{ inputs.use_byo_llm == true && inputs.aws_secret_access_key || '' }}
+          AWS_SESSION_TOKEN: ${{ inputs.use_byo_llm == true && inputs.aws_session_token || '' }}

@@ -6,8 +6,6 @@ name: Contrast CI
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 6 * * *' # <-- 6:00 UTC (2:00 AM EST / 11:00 PM PST)
   pull_request:
     types:
       - closed
