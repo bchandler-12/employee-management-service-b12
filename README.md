@@ -1,6 +1,6 @@
 # Employee Management Portal
 
-This project is a simple Spring Boot application that serves as an Employee Management Portal.  This project provides a variety of self-service actions for its users.
+This project is a fork of a simple Spring Boot application that serves as an Employee Management Portal.  This project provides a variety of self-service actions for its users.
 
 ## Project Structure
 

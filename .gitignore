@@ -32,7 +32,6 @@ src/main/webapp/users/*.props
 classes/*
 *.iml
 pom.xml.versionsBackup
-
 /*.iml
 .extract/*
 UserDatabase.mv.db
@@ -61,3 +60,4 @@ contrast_security.yaml
 contrast-agent-4.10.0.jar
 #ignore compiled smartfix files
 .github/actions/contrast-ai-smartfix/**/*.pyc
+.pathfinder
